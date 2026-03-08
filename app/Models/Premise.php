@@ -28,6 +28,7 @@ use Orchid\Screen\AsSource;
  * @property string $status
  * @property float $base_price
  * @property float|null $discount_price
+ * @property string $plan_image
  * @property array|null $features
  */
 class Premise extends Model

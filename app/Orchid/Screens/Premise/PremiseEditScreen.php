@@ -31,6 +31,20 @@ class PremiseEditScreen extends Screen
             $premise->floor_id = $request->input('floor_id');
         }
 
+        if ($premise->exists) {
+            $premise->gallery_attachment = $premise->attachment()
+                ->where('attachments.id', '<>', $premise->plan_image)
+                ->get()
+                ->toArray();
+        }
+
+        if ($premise->exists && $premise->plan_image) {
+            $premise->plan_attachment = $premise->attachment()
+                ->where('attachments.id', $premise->plan_image)
+                ->get()
+                ->toArray();
+        }
+
         return compact('premise');
     }
 
@@ -87,7 +101,7 @@ class PremiseEditScreen extends Screen
                     ->title('Количество комнат')
                     ->type('number')
                     ->required()
-                    ->min(1)
+                    ->min(0)
                     ->max(20)
                     ->value(1),
 
@@ -95,7 +109,6 @@ class PremiseEditScreen extends Screen
                     ->title('Общая площадь')
                     ->type('number')
                     ->required()
-                    ->step('0.1')
                     ->min(1)
                     ->help('Общая площадь в квадратных метрах'),
 
@@ -103,7 +116,6 @@ class PremiseEditScreen extends Screen
                     ->title('Жилая площадь')
                     ->type('number')
                     ->required()
-                    ->step('0.1')
                     ->min(1)
                     ->help('Жилая площадь в квадратных метрах'),
 
@@ -111,7 +123,6 @@ class PremiseEditScreen extends Screen
                     ->title('Площадь кухни')
                     ->type('number')
                     ->required()
-                    ->step('0.1')
                     ->min(1)
                     ->help('Площадь кухни в квадратных метрах'),
 
@@ -119,7 +130,6 @@ class PremiseEditScreen extends Screen
                     ->title('Цена')
                     ->type('number')
                     ->required()
-                    ->step('1000')
                     ->min(0)
                     ->max(100000000)
                     ->help('Цена'),
@@ -127,7 +137,6 @@ class PremiseEditScreen extends Screen
                 Input::make('premise.discount_price')
                     ->title('Цена со скидкой')
                     ->type('number')
-                    ->step('1000')
                     ->min(0)
                     ->max(100000000)
                     ->help('Цена со скидкой'),
@@ -151,7 +160,13 @@ class PremiseEditScreen extends Screen
                     ])
                     ->help('Пример: "Балкон" — "Застеклен", "Вид" — "Во двор"'),
 
-                Upload::make('premise.attachment')
+                Upload::make('premise.plan_attachment')
+                    ->title('Планировка')
+                    ->acceptedFiles('image/*')
+                    ->maxFiles(1)
+                    ->help('Загрузите план помещения (одно изображение)'),
+
+                Upload::make('premise.gallery_attachment')
                     ->title('Галерея')
                     ->acceptedFiles('image/*')
                     ->maxFiles(10),
@@ -167,7 +182,7 @@ class PremiseEditScreen extends Screen
         $request->validate([
             'premise.floor_id' => 'required|exists:floors,id',
             'premise.number' => 'required|string|max:50',
-            'premise.rooms' => 'required|integer|min:1|max:20',
+            'premise.rooms' => 'required|integer|min:0|max:20',
             'premise.total_area' => 'required|numeric|min:0',
             'premise.living_area' => 'required|numeric|min:0',
             'premise.kitchen_area' => 'required|numeric|min:0',
@@ -178,7 +193,15 @@ class PremiseEditScreen extends Screen
 
         $premise->fill($request->get('premise'))->save();
 
-        $premise->attachment()->sync($request->input('premise.attachment', []));
+        $premise->attachment()->sync(
+            array_merge(
+                $request->input('premise.plan_attachment', []),
+                $request->input('premise.gallery_attachment', [])
+            )
+        );
+        $planAttachments = $request->input('premise.plan_attachment', []);
+        $premise->plan_image = $planAttachments[0] ?? null;
+        $premise->save();
 
         Alert::info('Помещение успешно сохранено');
 
@@ -187,6 +210,7 @@ class PremiseEditScreen extends Screen
 
     public function remove(Premise $premise): RedirectResponse
     {
+        $premise->attachment()->detach();
         $premise->delete();
 
         Alert::info('Помещение успешно удалено');

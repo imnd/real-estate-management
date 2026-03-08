@@ -124,19 +124,14 @@ class FloorEditScreen extends Screen
         ]);
 
         $attachmentIds = $request->input('floor.attachment', []);
-
         if (!empty($attachmentIds)) {
             $floor->attachment()->sync($attachmentIds);
-            $attachment = $floor->attachment()->first();
-            if ($attachment) {
-                $floor->plan_image = $attachment->id;
-                $floor->save();
-            }
+            $floor->plan_image = $floor->attachment()->first()->id;
         } else {
             $floor->attachment()->detach();
             $floor->plan_image = null;
-            $floor->save();
         }
+        $floor->save();
 
         Alert::info('Этаж успешно сохранен');
 
